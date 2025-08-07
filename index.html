@@ -80,14 +80,30 @@
   var script = document.createElement("script");
   script.src = loaderUrl;
   script.onload = () => {
-    // Initialize our WebGL keyboard plugin before starting Unity
-    if (typeof Module !== 'undefined' && Module.InitializeKeyboard) {
-      Module.InitializeKeyboard();
-    }
-
     createUnityInstance(canvas, config, (progress) => {
       progressBarFull.style.width = 100 * progress + "%";
     }).then((unityInstance) => {
+      // expose unityInstance globally for JSLIB callbacks
+      window.unityInstance = unityInstance;
+
+      // Initialize our WebGL keyboard plugin
+      if (typeof Module !== 'undefined' && Module.InitializeKeyboard) {
+        Module.InitializeKeyboard();
+      }
+
+      // Attach real touchstart handler on the canvas to open the keyboard
+      canvas.addEventListener('touchstart', function(e) {
+        var rect = canvas.getBoundingClientRect();
+        Module.OpenKeyboardJS(
+                "",
+                0,
+                rect.left,
+                rect.top,
+                canvas.width,
+                canvas.height
+        );
+      }, { passive: true });
+
       loadingBar.style.display = "none";
       fullscreenButton.onclick = () => {
         unityInstance.SetFullscreen(1);
