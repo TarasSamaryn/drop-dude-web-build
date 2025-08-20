@@ -8,6 +8,7 @@
   <link rel="shortcut icon" href="TemplateData/favicon.ico">
   <link rel="stylesheet" href="TemplateData/style.css">
 
+  <!-- Правильний viewport + вирізи екрану -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,33 +17,49 @@
 
   <style>
     html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#000; }
-    /* Контейнер займає видимий екран і центрує канвас */
+
+    /* Контейнер: весь видимий екран */
     #unity-container {
-      position: fixed; inset:0;
+      position: fixed; inset: 0;
       width: 100vw; height: 100vh;
-      height: -webkit-fill-available;             /* iOS fallback */
-      display: flex; align-items: center; justify-content: center;
+      height: -webkit-fill-available;         /* iOS fallback */
       background: #000;
     }
     @supports (height: 100dvh) { #unity-container { height: 100dvh; } }
 
-    /* Розмір канваса виставляє JS (НЕ 100%) */
+    /* 🔧 Канвас: ЦЕНТР екрана завжди. Розмір задаємо JS-ом (letterbox 16:9) */
     #unity-canvas {
-      display:block;
-      touch-action:none; -webkit-user-select:none;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      display: block;
+      touch-action: none; -webkit-user-select: none;
       background:#000;
     }
-    #unity-loading-bar, #unity-warning, #unity-footer { pointer-events:none; }
+
+    /* Банер, лоадер, футер — позиціонуємо незалежно, щоб не зсували канвас */
+    #unity-loading-bar, #unity-warning, #unity-footer { position: absolute; pointer-events: none; }
+    #unity-loading-bar { top: 12px; left: 50%; transform: translateX(-50%); }
+    #unity-warning     { top: 12px; right: 12px; }
+    #unity-footer      { bottom: 12px; right: 12px; }
+
+    /* Прибрати зайві іконки у футері */
+    #unity-webgl-logo { display: none; }          /* кубик Unity */
+    /* Кнопку fullscreen сховаємо на iOS (там вона не працює) */
+    .hide { display: none !important; }
   </style>
 </head>
 <body>
 <div id="unity-container" class="unity-desktop">
   <canvas id="unity-canvas" width="1920" height="1080" tabindex="-1"></canvas>
+
   <div id="unity-loading-bar">
     <div id="unity-logo"></div>
     <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
   </div>
+
   <div id="unity-warning"></div>
+
   <div id="unity-footer">
     <div id="unity-webgl-logo"></div>
     <div id="unity-fullscreen-button"></div>
@@ -79,23 +96,19 @@
     showBanner:         unityShowBanner
   };
 
-  /* === ВПИСУЄМО КАДР 16:9 БЕЗ ОBRІЗАННЯ (LETTERBOX) === */
-  const TARGET_ASPECT = 16/9;   // під твоє 1920x1080
+  /* === ВПИСУЄМО 16:9 БЕЗ ОBRІЗАННЯ (LETTERBOX) ТА ЦЕНТР == */
+  const TARGET_ASPECT = 16 / 9;
 
   function fitContain(){
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // Максимальний розмір канваса, що влазить у viewport зі збереженням 16:9
+    // максимальний розмір 16:9, який влазить у viewport
     let cw = vw;
     let ch = Math.floor(vw / TARGET_ASPECT);
     if (ch > vh) { ch = vh; cw = Math.floor(vh * TARGET_ASPECT); }
 
-    // Контейнер = весь viewport
-    container.style.width  = vw + 'px';
-    container.style.height = vh + 'px';
-
-    // Канвас центрується через flex контейнера
+    // задати розмір канваса (контейнер уже на весь екран)
     canvas.style.width  = cw + 'px';
     canvas.style.height = ch + 'px';
   }
@@ -103,6 +116,12 @@
   window.addEventListener('resize', fitContain, { passive:true });
   window.addEventListener('orientationchange', function(){ setTimeout(fitContain, 250); }, { passive:true });
   fitContain();
+
+  // Сховати кнопку fullscreen на iOS (вона там не працює і збиває з пантелику)
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    var fsBtn = document.getElementById('unity-fullscreen-button');
+    if (fsBtn) { fsBtn.classList.add('hide'); }
+  }
 
   loadingBar.style.display = "block";
   var script = document.createElement("script");
@@ -113,7 +132,10 @@
     }).then(function (unityInstance) {
       window.myUnityInstance = unityInstance;
       loadingBar.style.display = "none";
-      fullscreenButton.onclick = function () { unityInstance.SetFullscreen(1); };
+      // На Android/desktop залишаємо fullscreen-кнопку
+      if (!/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        fullscreenButton.onclick = function () { unityInstance.SetFullscreen(1); };
+      }
     }).catch(function (e) { alert(e); });
   };
   document.body.appendChild(script);
