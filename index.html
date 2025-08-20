@@ -4,59 +4,8 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>Unity WebGL Player | drope-dude</title>
-
-  <!-- Favicon + базові стилі шаблону -->
   <link rel="shortcut icon" href="TemplateData/favicon.ico">
   <link rel="stylesheet" href="TemplateData/style.css">
-
-  <!-- ВАЖЛИВО для повноекранного мобільного в’юпорту -->
-  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover, interactive-widget=resizes-visual">
-  <meta name="theme-color" content="#000000">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-
-  <!-- Наші правки стилів поверх TemplateData/style.css -->
-  <style>
-    html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden; touch-action:none; }
-    /* Блокуємо оверскрол/резинове прокручування */
-    html, body { overscroll-behavior: none; }
-
-    /* Контейнер і канвас — фулскрін без відступів */
-    #unity-container {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      /* Порядок одиниць для кращої підтримки різних браузерів: */
-      height: 100svh;  /* сучасні мобільні (стабільний в’юпорт) */
-      height: 100dvh;  /* динамічний в’юпорт деяких браузерів */
-      height: 100vh;   /* fallback */
-      padding: 0;
-    }
-    #unity-canvas {
-      position: absolute;
-      left: 0; top: 0;
-      width: 100vw !important;
-      height: 100svh !important;
-      height: 100dvh !important;
-      height: 100vh !important;
-      display: block;
-      /* Розтягуємо під «вирізи/чубчики» */
-      padding-top: env(safe-area-inset-top, 0);
-      padding-right: env(safe-area-inset-right, 0);
-      padding-bottom: env(safe-area-inset-bottom, 0);
-      padding-left: env(safe-area-inset-left, 0);
-    }
-
-    /* На мобіле — прибираємо зайве UI від шаблону */
-    .unity-mobile #unity-footer,
-    .unity-mobile #unity-warning,
-    .unity-mobile #unity-loading-bar #unity-logo,
-    .unity-mobile #unity-webgl-logo {
-      display: none !important;
-    }
-
-    /* Запобігаємо текстовому виділенню/зуму жестами */
-    body, #unity-container, #unity-canvas { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
-  </style>
 </head>
 <body>
 <div id="unity-container" class="unity-desktop">
@@ -84,36 +33,19 @@
   var warningBanner    = document.querySelector("#unity-warning");
 
   function unityShowBanner(msg, type) {
-    function update() { warningBanner.style.display = warningBanner.children.length ? "block" : "none"; }
-    var div = document.createElement("div");
+    function update() {
+      warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+    }
+    var div = document.createElement('div');
     div.innerHTML = msg;
     warningBanner.appendChild(div);
-    if (type === "error") { div.style = "background:red;padding:10px;"; }
-    else if (type === "warning") {
-      div.style = "background:yellow;padding:10px;";
+    if (type === 'error') div.style = 'background:red;padding:10px;';
+    else if (type === 'warning') {
+      div.style = 'background:yellow;padding:10px;';
       setTimeout(function(){ warningBanner.removeChild(div); update(); }, 5000);
     }
     update();
   }
-
-  // Службова: фіксуємо фулскрін-розміри канваса під будь-які зміни (поворот/клавіатура/рядок адреси)
-  function sizeToViewport() {
-    var vw = window.innerWidth || document.documentElement.clientWidth;
-    var vh = window.innerHeight || document.documentElement.clientHeight;
-    container.style.width  = vw + "px";
-    container.style.height = vh + "px";
-    canvas.style.width  = vw + "px";
-    canvas.style.height = vh + "px";
-  }
-
-  // Відключаємо скрол/зум на дотик (не ламає Unity-тачі)
-  document.addEventListener("touchmove", function(e) {
-    if (e.target === canvas) { e.preventDefault(); }
-  }, { passive: false });
-
-  // iOS/Safari інколи змінюють висоту після інтеракцій — підписуємось на події
-  window.addEventListener("resize", sizeToViewport);
-  window.addEventListener("orientationchange", function(){ setTimeout(sizeToViewport, 150); });
 
   var buildUrl  = "Build";
   var loaderUrl = buildUrl + "/drop-dude-web-build.loader.js";
@@ -126,21 +58,19 @@
     productName:        "drope-dude",
     productVersion:     "0.1.0",
     showBanner:         unityShowBanner
-    // Можна додати: devicePixelRatio: 1, щоб знизити навантаження на 4K екранах. Не чіпаю, щоб «нічого не поламати».
   };
 
-  // Детект мобіли — тільки стилі/класи, без змін логіки Unity
   if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    var meta = document.createElement('meta');
+    meta.name    = 'viewport';
+    meta.content = 'width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes';
+    document.head.appendChild(meta);
     container.className = "unity-mobile";
     canvas.className    = "unity-mobile";
   } else {
-    // На десктопі лишаємо твої базові 960x600 (можеш захотіти зберегти саме так)
     canvas.style.width  = "960px";
     canvas.style.height = "600px";
   }
-
-  // Первинне виставлення розміру під в’юпорт
-  sizeToViewport();
 
   loadingBar.style.display = "block";
   var script = document.createElement("script");
@@ -151,10 +81,7 @@
     }).then(function (unityInstance) {
       window.myUnityInstance = unityInstance; // required by JSLIB
       loadingBar.style.display = "none";
-      // Кнопка фулскріна для десктопів/браузерів, де це доречно
       fullscreenButton.onclick = function () { unityInstance.SetFullscreen(1); };
-      // Ще раз синхронізуємо розміри після створення контексту
-      sizeToViewport();
     }).catch(function (e) { alert(e); });
   };
   document.body.appendChild(script);
