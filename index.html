@@ -5,65 +5,42 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>Unity WebGL Player | drope-dude</title>
 
-  <!-- Favicon & base styles -->
   <link rel="shortcut icon" href="TemplateData/favicon.ico">
   <link rel="stylesheet" href="TemplateData/style.css">
 
-  <!-- ✅ Ключовий мета-тег для мобільних + вирізів екрану -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-
-  <!-- (Не обов’язково, але корисно для iOS при «Add to Home Screen») -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="drope-dude">
 
-  <!-- ✅ Стилі повного заповнення видимого екрану -->
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden; /* без сторінкового скролу */
-      background: #000; /* щоб не миготіли краї */
-    }
-
-    /* Контейнер Unity на весь видимий екран */
+    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#000; }
+    /* Контейнер займає видимий екран і центрує канвас */
     #unity-container {
-      position: fixed;
-      inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
-      width: 100%;
-      height: 100vh;            /* базово */
-      height: -webkit-fill-available; /* iOS Safari fallback для адресного рядка */
+      position: fixed; inset:0;
+      width: 100vw; height: 100vh;
+      height: -webkit-fill-available;             /* iOS fallback */
+      display: flex; align-items: center; justify-content: center;
+      background: #000;
     }
+    @supports (height: 100dvh) { #unity-container { height: 100dvh; } }
 
-    /* Сучасні браузери: динамічний viewport (кращий за 100vh) */
-    @supports (height: 100dvh) {
-      #unity-container { height: 100dvh; }
-    }
-
-    /* Канвас завжди розтягується під контейнер */
+    /* Розмір канваса виставляє JS (НЕ 100%) */
     #unity-canvas {
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-      -webkit-user-select: none;
+      display:block;
+      touch-action:none; -webkit-user-select:none;
+      background:#000;
     }
-
-    /* Прогрес/футер як у шаблоні Unity — лишаємо */
-    #unity-loading-bar, #unity-warning, #unity-footer {
-      pointer-events: none; /* не заважають тапам по канвасу */
-    }
+    #unity-loading-bar, #unity-warning, #unity-footer { pointer-events:none; }
   </style>
 </head>
 <body>
 <div id="unity-container" class="unity-desktop">
-  <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
+  <canvas id="unity-canvas" width="1920" height="1080" tabindex="-1"></canvas>
   <div id="unity-loading-bar">
     <div id="unity-logo"></div>
-    <div id="unity-progress-bar-empty">
-      <div id="unity-progress-bar-full"></div>
-    </div>
+    <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
   </div>
   <div id="unity-warning"></div>
   <div id="unity-footer">
@@ -82,17 +59,10 @@
   var warningBanner    = document.querySelector("#unity-warning");
 
   function unityShowBanner(msg, type) {
-    function update() {
-      warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-    }
-    var div = document.createElement('div');
-    div.innerHTML = msg;
-    warningBanner.appendChild(div);
+    function update(){ warningBanner.style.display = warningBanner.children.length ? 'block':'none'; }
+    var div = document.createElement('div'); div.innerHTML = msg; warningBanner.appendChild(div);
     if (type === 'error') div.style = 'background:red;padding:10px;';
-    else if (type === 'warning') {
-      div.style = 'background:yellow;padding:10px;';
-      setTimeout(function(){ warningBanner.removeChild(div); update(); }, 5000);
-    }
+    else if (type === 'warning') { div.style = 'background:yellow;padding:10px;'; setTimeout(function(){ warningBanner.removeChild(div); update(); }, 5000); }
     update();
   }
 
@@ -109,22 +79,30 @@
     showBanner:         unityShowBanner
   };
 
-  /* ✅ Єдина логіка для розтягування: без фіксованих px на десктопі */
-  function fitToViewport() {
-    if (!container) { return; }
-    /* Реальна видима область браузера (враховує адресний рядок iOS) */
-    container.style.height = window.innerHeight + 'px';
-    container.style.width  = window.innerWidth  + 'px';
+  /* === ВПИСУЄМО КАДР 16:9 БЕЗ ОBRІЗАННЯ (LETTERBOX) === */
+  const TARGET_ASPECT = 16/9;   // під твоє 1920x1080
+
+  function fitContain(){
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Максимальний розмір канваса, що влазить у viewport зі збереженням 16:9
+    let cw = vw;
+    let ch = Math.floor(vw / TARGET_ASPECT);
+    if (ch > vh) { ch = vh; cw = Math.floor(vh * TARGET_ASPECT); }
+
+    // Контейнер = весь viewport
+    container.style.width  = vw + 'px';
+    container.style.height = vh + 'px';
+
+    // Канвас центрується через flex контейнера
+    canvas.style.width  = cw + 'px';
+    canvas.style.height = ch + 'px';
   }
 
-  /* Слухаємо зміни розміру та орієнтації */
-  window.addEventListener('resize', fitToViewport, { passive: true });
-  window.addEventListener('orientationchange', function() {
-    setTimeout(fitToViewport, 250); // дати iOS перерахувати висоту
-  }, { passive: true });
-  fitToViewport();
-
-  /* Не додаємо/не міняємо meta viewport динамічно — вже додали в <head> */
+  window.addEventListener('resize', fitContain, { passive:true });
+  window.addEventListener('orientationchange', function(){ setTimeout(fitContain, 250); }, { passive:true });
+  fitContain();
 
   loadingBar.style.display = "block";
   var script = document.createElement("script");
@@ -133,7 +111,7 @@
     createUnityInstance(canvas, config, function (progress) {
       progressBarFull.style.width = (progress * 100) + "%";
     }).then(function (unityInstance) {
-      window.myUnityInstance = unityInstance; // required by JSLIB
+      window.myUnityInstance = unityInstance;
       loadingBar.style.display = "none";
       fullscreenButton.onclick = function () { unityInstance.SetFullscreen(1); };
     }).catch(function (e) { alert(e); });
